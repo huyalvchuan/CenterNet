@@ -18,6 +18,7 @@ from logger import Logger
 from lib.utils.utils import AverageMeter
 from datasets.dataset_factory import dataset_factory
 from lib.detectors.detector_factory import detector_factory
+from tools.kitti_eval import pytorch2caffe
 
 class PrefetchDataset(torch.utils.data.Dataset):
   def __init__(self, opt, dataset, pre_process_func):
@@ -52,6 +53,9 @@ def prefetch_test(opt):
   print(opt)
   Logger(opt)
   Detector = detector_factory[opt.task]
+  model = Detector.model()
+  p2c = pytorch2caffe(model, '/home/lijf/MT', 'parking', [3, 512, 512])
+
   
   split = 'val' if not opt.trainval else 'test'
   dataset = Dataset(opt, split)
