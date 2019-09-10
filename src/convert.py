@@ -13,9 +13,9 @@ from progress.bar import Bar
 import torch
 
 from lib.opts import opts
-from tools.kitti_eval import pytorch2caffe
+from tools.kitti_eval.pytorch2caffe import Pytorch2Caffe
 from lib.datasets.dataset_factory import dataset_factory
-from models.model import create_model, load_model
+from lib.models.model import create_model, load_model
 
 def prefetch_test(opt):
   
