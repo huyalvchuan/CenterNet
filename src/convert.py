@@ -25,7 +25,8 @@ def prefetch_test(opt):
   model = create_model(opt.arch, opt.heads, opt.head_conv)
   #model = load_model(self.model, opt.load_model)
   model.eval()
-  p2c = pytorch2caffe(model, '/home/lijf/MT', 'parking', [3, 512, 512])
+  p2c = Pytorch2Caffe(model, '/home/lijf/MT', 'parking', [3, 512, 512])
+  p2c.start()
 
 if __name__ == '__main__':
   opt = opts().parse()
