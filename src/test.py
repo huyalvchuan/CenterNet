@@ -15,9 +15,9 @@ import torch
 from external.nms import soft_nms
 from opts import opts
 from logger import Logger
-from utils.utils import AverageMeter
+from lib.utils.utils import AverageMeter
 from datasets.dataset_factory import dataset_factory
-from detectors.detector_factory import detector_factory
+from lib.detectors.detector_factory import detector_factory
 
 class PrefetchDataset(torch.utils.data.Dataset):
   def __init__(self, opt, dataset, pre_process_func):
@@ -68,7 +68,7 @@ def prefetch_test(opt):
   avg_time_stats = {t: AverageMeter() for t in time_stats}
   for ind, (img_id, pre_processed_images) in enumerate(data_loader):
     ret = detector.run(pre_processed_images)
-    results[img_id.numpy().astype(np.int32)[0]] = ret['results']
+    results[img_id[0]] = ret['results']
     Bar.suffix = '[{0}/{1}]|Tot: {total:} |ETA: {eta:} '.format(
                    ind, num_iters, total=bar.elapsed_td, eta=bar.eta_td)
     for t in avg_time_stats:

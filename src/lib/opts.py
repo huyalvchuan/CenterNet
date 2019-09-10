@@ -269,7 +269,7 @@ class opts(object):
     print('training chunk_sizes:', opt.chunk_sizes)
 
     opt.root_dir = os.path.join(os.path.dirname(__file__), '..', '..')
-    opt.data_dir = os.path.join(opt.root_dir, 'data')
+    opt.data_dir = '/data-private/parking/data/COCO4582data/'
     opt.exp_dir = os.path.join(opt.root_dir, 'exp', opt.task)
     opt.save_dir = os.path.join(opt.exp_dir, opt.exp_id)
     opt.debug_dir = os.path.join(opt.save_dir, 'debug')
@@ -321,11 +321,11 @@ class opts(object):
     elif opt.task == 'multi_pose':
       # assert opt.dataset in ['coco_hp']
       opt.flip_idx = dataset.flip_idx
-      opt.heads = {'hm': opt.num_classes, 'wh': 2, 'hps': 34}
+      opt.heads = {'hm': opt.num_classes, 'wh': 2, 'hps': 4*2}
       if opt.reg_offset:
         opt.heads.update({'reg': 2})
       if opt.hm_hp:
-        opt.heads.update({'hm_hp': 17})
+        opt.heads.update({'hm_hp': 4})
       if opt.reg_hp_offset:
         opt.heads.update({'hp_offset': 2})
     else:

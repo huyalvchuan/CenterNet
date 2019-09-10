@@ -8,27 +8,29 @@ import os
 
 import torch
 import torch.utils.data
-from opts import opts
-from models.model import create_model, load_model, save_model
-from models.data_parallel import DataParallel
+from lib.opts import opts
+from lib.models.model import create_model, load_model, save_model
+from lib.models.data_parallel import DataParallel
 from logger import Logger
-from datasets.dataset_factory import get_dataset
-from trains.train_factory import train_factory
+from lib.datasets.dataset_factory import get_dataset
+from lib.trains.train_factory import train_factory
 
 
 def main(opt):
   torch.manual_seed(opt.seed)
   torch.backends.cudnn.benchmark = not opt.not_cuda_benchmark and not opt.test
+
+  # 选取数据集,并没有初始化。
   Dataset = get_dataset(opt.dataset, opt.task)
   opt = opts().update_dataset_info_and_set_heads(opt, Dataset)
-  print(opt)
-
+  print(opt.output_res)
   logger = Logger(opt)
 
   os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpus_str
   opt.device = torch.device('cuda' if opt.gpus[0] >= 0 else 'cpu')
   
   print('Creating model...')
+  # 模型初始化
   model = create_model(opt.arch, opt.heads, opt.head_conv)
   optimizer = torch.optim.Adam(model.parameters(), opt.lr)
   start_epoch = 0
@@ -36,6 +38,7 @@ def main(opt):
     model, optimizer, start_epoch = load_model(
       model, opt.load_model, optimizer, opt.resume, opt.lr, opt.lr_step)
 
+  # 选取不同的训练过程。
   Trainer = train_factory[opt.task]
   trainer = Trainer(opt, model, optimizer)
   trainer.set_device(opt.gpus, opt.chunk_sizes, opt.device)
@@ -55,7 +58,7 @@ def main(opt):
     return
 
   train_loader = torch.utils.data.DataLoader(
-      Dataset(opt, 'train'), 
+      Dataset(opt, 'train'), # 初始化训练集
       batch_size=opt.batch_size, 
       shuffle=True,
       num_workers=opt.num_workers,

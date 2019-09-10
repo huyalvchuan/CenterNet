@@ -61,7 +61,7 @@ class MultiPoseDetector(BaseDetector):
       dets.copy(), [meta['c']], [meta['s']],
       meta['out_height'], meta['out_width'])
     for j in range(1, self.num_classes + 1):
-      dets[0][j] = np.array(dets[0][j], dtype=np.float32).reshape(-1, 39)
+      dets[0][j] = np.array(dets[0][j], dtype=np.float32).reshape(-1, 13)
       # import pdb; pdb.set_trace()
       dets[0][j][:, :4] /= scale
       dets[0][j][:, 5:] /= scale

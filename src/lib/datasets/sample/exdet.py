@@ -17,6 +17,7 @@ import math
 
 class EXDetDataset(data.Dataset):
   def _coco_box_to_bbox(self, box):
+    # y, x, h, w -> y, x, y_, x_
     bbox = np.array([box[0], box[1], box[0] + box[2], box[1] + box[3]],
                     dtype=np.float32)
     return bbox

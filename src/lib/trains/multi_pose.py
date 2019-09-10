@@ -30,6 +30,7 @@ class MultiPoseLoss(torch.nn.Module):
     hp_loss, off_loss, hm_hp_loss, hp_offset_loss = 0, 0, 0, 0
     for s in range(opt.num_stacks):
       output = outputs[s]
+      # 物体和关键点存在与不存在。
       output['hm'] = _sigmoid(output['hm'])
       if opt.hm_hp and not opt.mse_loss:
         output['hm_hp'] = _sigmoid(output['hm_hp'])
@@ -60,19 +61,24 @@ class MultiPoseLoss(torch.nn.Module):
                                  batch['dense_hps'] * batch['dense_hps_mask']) / 
                                  mask_weight) / opt.num_stacks
       else:
+        # 计算关键点与中心点偏差的损失。
         hp_loss += self.crit_kp(output['hps'], batch['hps_mask'], 
                                 batch['ind'], batch['hps']) / opt.num_stacks
       if opt.wh_weight > 0:
+        # 计算box的大小的损失。
         wh_loss += self.crit_reg(output['wh'], batch['reg_mask'],
                                  batch['ind'], batch['wh']) / opt.num_stacks
       if opt.reg_offset and opt.off_weight > 0:
+        # 计算中心点位置偏差损失
         off_loss += self.crit_reg(output['reg'], batch['reg_mask'],
                                   batch['ind'], batch['reg']) / opt.num_stacks
       if opt.reg_hp_offset and opt.off_weight > 0:
+        # 关键点自己与自己的偏差。
         hp_offset_loss += self.crit_reg(
           output['hp_offset'], batch['hp_mask'],
           batch['hp_ind'], batch['hp_offset']) / opt.num_stacks
       if opt.hm_hp and opt.hm_hp_weight > 0:
+        # 关键点的热图的损失。
         hm_hp_loss += self.crit_hm_hp(
           output['hm_hp'], batch['hm_hp']) / opt.num_stacks
     loss = opt.hm_weight * hm_loss + opt.wh_weight * wh_loss + \
@@ -105,10 +111,10 @@ class MultiPoseTrainer(BaseTrainer):
     dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])
 
     dets[:, :, :4] *= opt.input_res / opt.output_res
-    dets[:, :, 5:39] *= opt.input_res / opt.output_res
+    dets[:, :, 5:13] *= opt.input_res / opt.output_res
     dets_gt = batch['meta']['gt_det'].numpy().reshape(1, -1, dets.shape[2])
     dets_gt[:, :, :4] *= opt.input_res / opt.output_res
-    dets_gt[:, :, 5:39] *= opt.input_res / opt.output_res
+    dets_gt[:, :, 5:13] *= opt.input_res / opt.output_res
     for i in range(1):
       debugger = Debugger(
         dataset=opt.dataset, ipynb=(opt.debug==3), theme=opt.debugger_theme)

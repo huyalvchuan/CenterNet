@@ -1,3 +1,4 @@
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -12,34 +13,40 @@ import torch.utils.data as data
 
 class COCOHP(data.Dataset):
   num_classes = 1
-  num_joints = 17
+  num_joints = 4
   default_resolution = [512, 512]
   mean = np.array([0.40789654, 0.44719302, 0.47026115],
                    dtype=np.float32).reshape(1, 1, 3)
   std  = np.array([0.28863828, 0.27408164, 0.27809835],
                    dtype=np.float32).reshape(1, 1, 3)
-  flip_idx = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], 
-              [11, 12], [13, 14], [15, 16]]
+  flip_idx = [[0, 1], [2, 3]]
+  # flip_idx = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10],
+  #             [11, 12], [13, 14], [15, 16]]
   def __init__(self, opt, split):
     super(COCOHP, self).__init__()
-    self.edges = [[0, 1], [0, 2], [1, 3], [2, 4], 
-                  [4, 6], [3, 5], [5, 6], 
-                  [5, 7], [7, 9], [6, 8], [8, 10], 
-                  [6, 12], [5, 11], [11, 12], 
-                  [12, 14], [14, 16], [11, 13], [13, 15]]
-    
-    self.acc_idxs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    self.edges = [[0, 1], [1, 2], [2, 3], [3, 0]]
+    # self.edges = [[0, 1], [0, 2], [1, 3], [2, 4],
+    #               [4, 6], [3, 5], [5, 6],
+    #               [5, 7], [7, 9], [6, 8], [8, 10],
+    #               [6, 12], [5, 11], [11, 12],
+    #               [12, 14], [14, 16], [11, 13], [13, 15]]
+
+    self.acc_idxs = [1, 2, 3, 4]
     self.data_dir = os.path.join(opt.data_dir, 'coco')
-    self.img_dir = os.path.join(self.data_dir, '{}2017'.format(split))
+    self.img_dir = os.path.join(self.data_dir, 'images', '{}4582'.format(split))
+    # self.img_dir = os.path.join(self.data_dir, 'images', '{}2017'.format(split))
+
     if split == 'test':
       self.annot_path = os.path.join(
           self.data_dir, 'annotations', 
-          'image_info_test-dev2017.json').format(split)
+          'parking_keypoints_{}4582.json').format(split)
+          # 'image_info_test-dev2017.json').format(split)
     else:
       self.annot_path = os.path.join(
         self.data_dir, 'annotations', 
-        'person_keypoints_{}2017.json').format(split)
-    self.max_objs = 32
+        'parking_keypoints_{}4582.json').format(split)
+        # 'person_keypoints_{}2017.json').format(split)
+    self.max_objs = 64
     self._data_rng = np.random.RandomState(123)
     self._eig_val = np.array([0.2141788, 0.01817699, 0.00341571],
                              dtype=np.float32)
@@ -51,11 +58,13 @@ class COCOHP(data.Dataset):
     self.split = split
     self.opt = opt
 
-    print('==> initializing coco 2017 {} data.'.format(split))
+    # print('==> initializing coco 2017 {} data.'.format(split))
+    print('==> initializing coco 4582 {} data.'.format(split))
     self.coco = coco.COCO(self.annot_path)
     image_ids = self.coco.getImgIds()
 
     if split == 'train':
+    # if split == 'trainval':
       self.images = []
       for img_id in image_ids:
         idxs = self.coco.getAnnIds(imgIds=[img_id])
@@ -82,8 +91,10 @@ class COCOHP(data.Dataset):
           score = dets[4]
           bbox_out  = list(map(self._to_float, bbox))
           keypoints = np.concatenate([
-            np.array(dets[5:39], dtype=np.float32).reshape(-1, 2), 
-            np.ones((17, 1), dtype=np.float32)], axis=1).reshape(51).tolist()
+            np.array(dets[5:13], dtype=np.float32).reshape(-1, 2),
+            # np.array(dets[5:39], dtype=np.float32).reshape(-1, 2),
+            np.ones((4, 1), dtype=np.float32)], axis=1).reshape(12).tolist()
+            # np.ones((17, 1), dtype=np.float32)], axis=1).reshape(51).tolist()
           keypoints  = list(map(self._to_float, keypoints))
 
           detection = {

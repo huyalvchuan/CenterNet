@@ -500,16 +500,21 @@ def multi_pose_decode(
   num_joints = kps.shape[1] // 2
   # heat = torch.sigmoid(heat)
   # perform nms on heatmaps
+  # 比周围八个点值大就是目标。
   heat = _nms(heat)
+  # 选取前k个最大置信度
   scores, inds, clses, ys, xs = _topk(heat, K=K)
-
+ 
+  # 获取到候选的与中心的偏差值。
   kps = _tranpose_and_gather_feat(kps, inds)
   kps = kps.view(batch, K, num_joints * 2)
+  # 关键点坐标值。
   kps[..., ::2] += xs.view(batch, K, 1).expand(batch, K, num_joints)
   kps[..., 1::2] += ys.view(batch, K, 1).expand(batch, K, num_joints)
   if reg is not None:
     reg = _tranpose_and_gather_feat(reg, inds)
     reg = reg.view(batch, K, 2)
+    # 真正的中心点。
     xs = xs.view(batch, K, 1) + reg[:, :, 0:1]
     ys = ys.view(batch, K, 1) + reg[:, :, 1:2]
   else:
@@ -535,6 +540,7 @@ def multi_pose_decode(
           hp_offset = _tranpose_and_gather_feat(
               hp_offset, hm_inds.view(batch, -1))
           hp_offset = hp_offset.view(batch, num_joints, K, 2)
+          # 通过与关键点位置的偏差。
           hm_xs = hm_xs + hp_offset[:, :, :, 0]
           hm_ys = hm_ys + hp_offset[:, :, :, 1]
       else:

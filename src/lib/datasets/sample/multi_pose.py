@@ -8,10 +8,10 @@ import torch
 import json
 import cv2
 import os
-from utils.image import flip, color_aug
-from utils.image import get_affine_transform, affine_transform
-from utils.image import gaussian_radius, draw_umich_gaussian, draw_msra_gaussian
-from utils.image import draw_dense_reg
+from lib.utils.image import flip, color_aug
+from lib.utils.image import get_affine_transform, affine_transform
+from lib.utils.image import gaussian_radius, draw_umich_gaussian, draw_msra_gaussian
+from lib.utils.image import draw_dense_reg
 import math
 
 class MultiPoseDataset(data.Dataset):
@@ -67,6 +67,8 @@ class MultiPoseDataset(data.Dataset):
 
     trans_input = get_affine_transform(
       c, s, rot, [self.opt.input_res, self.opt.input_res])
+
+    # reisize
     inp = cv2.warpAffine(img, trans_input, 
                          (self.opt.input_res, self.opt.input_res),
                          flags=cv2.INTER_LINEAR)
@@ -76,17 +78,23 @@ class MultiPoseDataset(data.Dataset):
     inp = (inp - self.mean) / self.std
     inp = inp.transpose(2, 0, 1)
 
+
     output_res = self.opt.output_res
     num_joints = self.num_joints
+    # 对坐标执行相同操作。
     trans_output_rot = get_affine_transform(c, s, rot, [output_res, output_res])
     trans_output = get_affine_transform(c, s, 0, [output_res, output_res])
 
+    #  热图
     hm = np.zeros((self.num_classes, output_res, output_res), dtype=np.float32)
+
+    # 关键点坐标
     hm_hp = np.zeros((num_joints, output_res, output_res), dtype=np.float32)
     dense_kps = np.zeros((num_joints, 2, output_res, output_res), 
                           dtype=np.float32)
     dense_kps_mask = np.zeros((num_joints, output_res, output_res), 
                                dtype=np.float32)
+                              
     wh = np.zeros((self.max_objs, 2), dtype=np.float32)
     kps = np.zeros((self.max_objs, num_joints * 2), dtype=np.float32)
     reg = np.zeros((self.max_objs, 2), dtype=np.float32)
@@ -103,9 +111,10 @@ class MultiPoseDataset(data.Dataset):
     gt_det = []
     for k in range(num_objs):
       ann = anns[k]
+      # 左上左下两个点
       bbox = self._coco_box_to_bbox(ann['bbox'])
-      cls_id = int(ann['category_id']) - 1
-      pts = np.array(ann['keypoints'], np.float32).reshape(num_joints, 3)
+      cls_id = int(ann['category_id']) - 1 # 1
+      pts = np.array(ann['keypoints'], np.float32).reshape(num_joints, 3) # x, y, 可见不可见。
       if flipped:
         bbox[[0, 2]] = width - bbox[[2, 0]] - 1
         pts[:, 0] = width - pts[:, 0] - 1
@@ -114,34 +123,52 @@ class MultiPoseDataset(data.Dataset):
       bbox[:2] = affine_transform(bbox[:2], trans_output)
       bbox[2:] = affine_transform(bbox[2:], trans_output)
       bbox = np.clip(bbox, 0, output_res - 1)
+      # 缩小后的坐标和大小
       h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
       if (h > 0 and w > 0) or (rot != 0):
+        # 可以达到一定iou的半径，该方法解释可以列出等式求解。
         radius = gaussian_radius((math.ceil(h), math.ceil(w)))
-        radius = self.opt.hm_gauss if self.opt.mse_loss else max(0, int(radius)) 
+        # hp的时候使用固定半径
+        radius = self.opt.hm_gauss if self.opt.mse_loss else max(0, int(radius))
+        # 中心坐标
         ct = np.array(
           [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
         ct_int = ct.astype(np.int32)
+        # 缩小后的大小
         wh[k] = 1. * w, 1. * h
+        # 把图拉直了的中心所在的坐标
         ind[k] = ct_int[1] * output_res + ct_int[0]
+        # 偏差
         reg[k] = ct - ct_int
+        # 计数存在的物体
         reg_mask[k] = 1
+        
         num_kpts = pts[:, 2].sum()
         if num_kpts == 0:
+          # 如果都是不可见的那么，热力图设置为0.99但是不计数。
           hm[cls_id, ct_int[1], ct_int[0]] = 0.9999
           reg_mask[k] = 0
 
+        # 关键点半径
         hp_radius = gaussian_radius((math.ceil(h), math.ceil(w)))
         hp_radius = self.opt.hm_gauss \
                     if self.opt.mse_loss else max(0, int(hp_radius)) 
+          
         for j in range(num_joints):
           if pts[j, 2] > 0:
+            # 获取缩小后的坐标
             pts[j, :2] = affine_transform(pts[j, :2], trans_output_rot)
             if pts[j, 0] >= 0 and pts[j, 0] < output_res and \
                pts[j, 1] >= 0 and pts[j, 1] < output_res:
+              
+              # kps是关键点的坐标
               kps[k, j * 2: j * 2 + 2] = pts[j, :2] - ct_int
               kps_mask[k, j * 2: j * 2 + 2] = 1
               pt_int = pts[j, :2].astype(np.int32)
+
+              # 关键点的偏差。
               hp_offset[k * num_joints + j] = pts[j, :2] - pt_int
+              # 关键点拉直后的坐标和存在与否。
               hp_ind[k * num_joints + j] = pt_int[1] * output_res + pt_int[0]
               hp_mask[k * num_joints + j] = 1
               if self.opt.dense_hp:
@@ -158,6 +185,10 @@ class MultiPoseDataset(data.Dataset):
       hm = hm * 0 + 0.9999
       reg_mask *= 0
       kps_mask *= 0
+    
+    # (hm：box的热图， reg_mask: 目标是否存在), ind: 拉直后中心位置。 wh： 物体在热图上的wh。
+    # kps： 关键点和中心的偏差。 kps_mask： 关键点坐标存在与不存在。 reg：box的偏差。
+    # hm_hp: 关键点热图。hp_offset：关键点与自己的偏差。hp_ind：关键点的位置存在与否。hp_mask:关键点存在不存在。
     ret = {'input': inp, 'hm': hm, 'reg_mask': reg_mask, 'ind': ind, 'wh': wh,
            'hps': kps, 'hps_mask': kps_mask}
     if self.opt.dense_hp:
