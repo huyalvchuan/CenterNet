@@ -12,11 +12,16 @@ import time
 from progress.bar import Bar
 import torch
 
-from opts import opts
+from lib.opts import opts
 from tools.kitti_eval import pytorch2caffe
+from lib.datasets.dataset_factory import dataset_factory
 from models.model import create_model, load_model
 
 def prefetch_test(opt):
+  
+  Dataset = dataset_factory[opt.dataset]
+  opt = opts().update_dataset_info_and_set_heads(opt, Dataset)
+  print(opt)
   model = create_model(opt.arch, opt.heads, opt.head_conv)
   model = load_model(self.model, opt.load_model)
   model.eval()
