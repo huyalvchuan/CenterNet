@@ -23,7 +23,7 @@ def prefetch_test(opt):
   opt = opts().update_dataset_info_and_set_heads(opt, Dataset)
   print(opt)
   model = create_model(opt.arch, opt.heads, opt.head_conv)
-  model = load_model(self.model, opt.load_model)
+  #model = load_model(self.model, opt.load_model)
   model.eval()
   p2c = pytorch2caffe(model, '/home/lijf/MT', 'parking', [3, 512, 512])
 
