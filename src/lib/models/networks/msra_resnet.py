@@ -193,6 +193,7 @@ class PoseResNet(nn.Module):
                 self._get_deconv_cfg(num_kernels[i], i)
 
             planes = num_filters[i]
+            print(kernel)
             layers.append(
                 nn.ConvTranspose2d(
                     in_channels=self.inplanes,
